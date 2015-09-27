@@ -4,7 +4,9 @@ Intended as a replacement for UIActionSheet, where only a few options need to be
 
 Let's talk on twitter - [@mmackh](https://twitter.com/mmackh) or http://inoads.com
 
+![demo](https://cloud.githubusercontent.com/assets/948693/10125036/7623b79c-6566-11e5-8b48-741ee7d30d09.gif)
 
+![Screenshot](https://cloud.githubusercontent.com/assets/948693/10125035/64c443f4-6566-11e5-8add-53f6a8a6f28b.png)
 
 As always, pull requests and bug reports are welcome.
 
