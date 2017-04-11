@@ -101,13 +101,28 @@
 
 @implementation UIImage (ImageEffects)
 
++ (UIImage *)darkishBlurredImageForView:(UIView *)view
+{
+    return [UIImage blurredImageForView:view color:[UIColor colorWithWhite:0.0 alpha:0.7] saturation:2.8 radius:9];
+}
+
 + (UIImage *)blurredImageForView:(UIView *)view
+{
+    return [UIImage blurredImageForView:view color:[UIColor colorWithWhite:0.7 alpha:0.7] saturation:1.8 radius:9];
+}
+
++ (UIImage *)lightlyBlurredImageForView:(UIView *)view
+{
+    return [UIImage blurredImageForView:view color:[UIColor colorWithWhite:1.0 alpha:0.6] saturation:2.0 radius:9];
+}
+
++ (UIImage *)blurredImageForView:(UIView *)view color:(UIColor *)color saturation:(float)saturation radius:(int)radius
 {
     UIGraphicsBeginImageContext(view.bounds.size);
     [view drawViewHierarchyInRect:view.bounds afterScreenUpdates:NO];
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    return [image applyBlurWithRadius:8 tintColor:[UIColor colorWithWhite:0.7 alpha:0.7] saturationDeltaFactor:1.8 maskImage:nil];
+    return [image applyBlurWithRadius:radius tintColor:color saturationDeltaFactor:saturation maskImage:nil];
 }
 
 - (UIImage *)applyLightEffect
