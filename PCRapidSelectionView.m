@@ -17,6 +17,8 @@ NSInteger const kPCRapidSelectionViewTag = 1838;
 
 @interface PCRapidSelectionView () <UIGestureRecognizerDelegate>
 
+@property (nonatomic) IPDFUITheme theme;
+
 @property (nonatomic) UIView *actionView;
 @property (nonatomic,weak) UIView *parentView;
 @property (nonatomic) UIImageView *blurredImageView;
@@ -26,10 +28,6 @@ NSInteger const kPCRapidSelectionViewTag = 1838;
 @property (nonatomic,copy) void (^completionHandler)(NSInteger selectedIndex);
 
 @property (nonatomic,getter=isInteractive) BOOL interactive;
-
-@end
-
-@interface PCRapidButton : UIButton
 
 @end
 
@@ -47,6 +45,11 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
 
 + (void)viewForParentView:(UIView *)parentView currentGuestureRecognizer:(UIGestureRecognizer *)guestureRecognizer interactive:(BOOL)interactive options:(NSArray *)options title:(NSString *)title completionHandler:(void(^)(NSInteger selectedIndex))completionHandler
 {
+    [self viewForParentView:parentView theme:IPDFUIThemeLight currentGuestureRecognizer:guestureRecognizer interactive:interactive options:options title:title completionHandler:completionHandler];
+}
+
++ (void)viewForParentView:(UIView *)parentView theme:(IPDFUITheme)theme currentGuestureRecognizer:(UIGestureRecognizer *)guestureRecognizer interactive:(BOOL)interactive options:(NSArray *)options title:(NSString *)title completionHandler:(void(^)(NSInteger selectedIndex))completionHandler;
+{
     if ([parentView viewWithTag:kPCRapidSelectionViewTag]) return;
     
 /*
@@ -55,8 +58,6 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
     if (interactive) AudioServicesPlaySystemSoundWithVibration(4095,nil,@{@"Intensity":@(1),@"VibePattern":@[@(YES),@(40)]});
 #pragma clang diagnostic pop
 */
-    
-    
     UIWindow *currentWindow = [[UIApplication sharedApplication] keyWindow];
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^
@@ -69,6 +70,7 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
 
     PCRapidSelectionView *selectionView = [[PCRapidSelectionView alloc] initWithFrame:parentView.bounds];
     selectionView.interactive = interactive;
+    selectionView.theme = theme;
     [selectionView setParentView:parentView guesture:guestureRecognizer options:options title:title];
     selectionView.completionHandler = completionHandler;
 
@@ -99,15 +101,27 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
     CGFloat cornerRadius = 10;
     
     CGFloat width = MIN(parentView.bounds.size.width, 400);
+    CGFloat widthInsetPadding = 10;
     
-    UIView *containerView = [[UIView alloc] initWithFrame:CGRectMake(10, 0, width - 20, buttonHeight * options.count + titleLabelHeight + titleDistance)];
+    CGFloat realWidth = width - widthInsetPadding * 2;
+    
+    CGFloat titleHeightCalculated = [self heightForString:title maxWidth:realWidth];
+    titleLabelHeight = (titleHeightCalculated <= 58) ? 58 : titleHeightCalculated + 18;
+    
+    UIView *containerView = [[UIView alloc] initWithFrame:CGRectMake(widthInsetPadding, 0, realWidth, buttonHeight * options.count + titleLabelHeight + titleDistance)];
+    
+    
     self.actionView = containerView;
     containerView.center = self.center;
     containerView.autoresizingMask = UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin;
     containerView.translatesAutoresizingMaskIntoConstraints = YES;
     containerView.frame = CGRectOffset(containerView.frame, 0, parentView.bounds.size.height / 2 + containerView.bounds.size.height / 2);
     
-    UIImageView *blurredImageView = [[UIImageView alloc] initWithImage:[UIImage blurredImageForView:parentView]];
+    BOOL lightTheme = (self.theme == IPDFUIThemeLight);
+    
+    UIImage *blurredImage = (lightTheme) ? [UIImage blurredImageForView:parentView] : [UIImage darkishBlurredImageForView:parentView];
+    
+    UIImageView *blurredImageView = [[UIImageView alloc] initWithImage:blurredImage];
     blurredImageView.alpha = 0.0;
     blurredImageView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
     blurredImageView.translatesAutoresizingMaskIntoConstraints = YES;
@@ -115,18 +129,22 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
     [self addSubview:blurredImageView];
     
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, titleLabelHeight + 10, containerView.bounds.size.width, titleLabelHeight)];
-    titleLabel.textColor = [UIColor colorWithWhite:0.0 alpha:0.7];
+    titleLabel.textColor = (lightTheme) ? [UIColor colorWithWhite:0.0 alpha:0.7] : [UIColor colorWithWhite:1.0 alpha:0.7];
     titleLabel.text = title;
+    titleLabel.numberOfLines = 0;
     titleLabel.textAlignment = NSTextAlignmentCenter;
     titleLabel.font = [UIFont boldSystemFontOfSize:17.5];
-    titleLabel.layer.backgroundColor = [UIColor whiteColor].CGColor;
     titleLabel.layer.cornerRadius = cornerRadius;
     [containerView addSubview:titleLabel];
     self.titleLabel = titleLabel;
     
     UIView *buttonView = [[UIView alloc] initWithFrame:CGRectMake(0, titleLabelHeight + titleDistance, containerView.bounds.size.width, options.count * buttonHeight)];
-    buttonView.layer.backgroundColor = [UIColor whiteColor].CGColor;
     buttonView.layer.cornerRadius = cornerRadius;
+    if (!lightTheme)
+    {
+        buttonView.layer.borderColor = [UIColor colorWithWhite:0.4 alpha:1.0].CGColor;
+        buttonView.layer.borderWidth = 1;
+    }
     buttonView.clipsToBounds = YES;
     self.buttonView = buttonView;
     [containerView addSubview:buttonView];
@@ -142,12 +160,12 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
         button.titleLabel.font = [UIFont systemFontOfSize:18.5];
         button.backgroundColor = [UIColor clearColor];
         
-        [button setTitleColor:[UIColor colorWithRed:0 green:0.46 blue:1 alpha:1] forState:UIControlStateNormal];
+        [button setTitleColor:(lightTheme) ? [UIColor colorWithRed:0 green:0.46 blue:1 alpha:1] : [UIColor whiteColor] forState:UIControlStateNormal];
         
         if (addLine)
         {
             UIView *separator = [[UIView alloc] initWithFrame:CGRectMake(0, increment * buttonHeight, containerView.bounds.size.width, 0.5)];
-            separator.backgroundColor = [UIColor colorWithWhite:0.8 alpha:1.0];
+            separator.backgroundColor = [UIColor colorWithWhite:(lightTheme)?0.8:0.4 alpha:1.0];
             [buttonView addSubview:separator];
         }
         
@@ -165,20 +183,31 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
     
 }
 
+- (CGFloat)heightForString:(NSString *)string maxWidth:(CGFloat)width
+{
+    CGFloat height = (!string.length) ? 0 : [string boundingRectWithSize:CGSizeMake(width, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin|NSStringDrawingUsesFontLeading attributes:@{NSFontAttributeName:[UIFont boldSystemFontOfSize:17.5]} context:nil].size.height;
+    
+    return height;
+}
+
 - (void)show:(BOOL)show completionHandler:(void(^)())completionHandler;
 {
     isInteractive = self.interactive;
     _animationInProgress = YES;
     
+    BOOL lightTheme = (self.theme == IPDFUIThemeLight);
+    
     [UIView animateWithDuration:0.2 animations:^
     {
         self.blurredImageView.alpha = show;
         
-        self.titleLabel.layer.backgroundColor = [UIColor colorWithWhite:1.0 alpha:(show)?0.6:1.0].CGColor;
-        self.buttonView.layer.backgroundColor = [UIColor colorWithWhite:1.0 alpha:(show)?0.96:1.0].CGColor;
+        self.titleLabel.layer.backgroundColor = [UIColor colorWithWhite:(lightTheme)?1.0:0.3 alpha:(show)?0.6:1.0].CGColor;
+        self.buttonView.layer.backgroundColor = [UIColor colorWithWhite:(lightTheme)?1.0:0.0 alpha:(show)?0.96:1.0].CGColor;
     }];
     
-    [UIView animateWithDuration:0.5 delay:(show)? 0.2 : 0.0 usingSpringWithDamping:0.7 initialSpringVelocity:0.7 options:UIViewAnimationOptionAllowUserInteraction animations:^
+    NSInteger buttonViewCountSubviewCount = self.buttonView.subviews.count;
+    
+    [UIView animateWithDuration:!buttonViewCountSubviewCount?0.0:0.5 delay:(show)? 0.2 : 0.0 usingSpringWithDamping:0.7 initialSpringVelocity:0.7 options:UIViewAnimationOptionAllowUserInteraction animations:^
     {
         self.titleLabel.frame = CGRectOffset(self.titleLabel.frame, 0, (10 + self.titleLabel.bounds.size.height) * ((show) ? -1 : 1));
     } completion:nil];
@@ -187,7 +216,6 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
         
         CGFloat distance = self.bounds.size.height/2 + self.actionView.bounds.size.height /2 ;
         self.actionView.frame = CGRectOffset(self.actionView.frame, 0, distance  * ((show) ? -1 :  1) );
-        
     }
     completion:^(BOOL finished)
     {
@@ -226,6 +254,8 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
     {
         BOOL hasHit = NO;
         
+        CGPoint touchLocation = [touch locationInView:self];
+        
         for (id subview in self.buttonView.subviews)
         {
             if (_animationInProgress) break;
@@ -234,7 +264,6 @@ void (*gOrigSendEvent)(id, SEL, UIEvent *);
             
             PCRapidButton *button = subview;
             CGRect buttonInView = [button convertRect:button.bounds toView:self];
-            CGPoint touchLocation = [touch locationInView:self];
             
             BOOL hitButton = CGRectContainsPoint(buttonInView, touchLocation);
             
@@ -296,13 +325,19 @@ static void OverrideSendEvent(UIWindow *self, SEL _cmd, UIEvent *event)
 
 @end
 
+@interface PCRapidButton ()
+
+@property (nonatomic) UIColor *backupBackgroundColor;
+
+@end
+
 @implementation PCRapidButton
 
 - (void)setHighlighted:(BOOL)highlighted
 {
     [super setHighlighted:highlighted];
     
-    self.backgroundColor = (highlighted) ? [UIColor colorWithWhite:0.9 alpha:0.5] : [UIColor clearColor];
+    self.backgroundColor = (highlighted) ? [UIColor colorWithWhite:0.8 alpha:0.6] : [UIColor clearColor];
 }
 
 @end
