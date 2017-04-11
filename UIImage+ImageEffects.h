@@ -97,7 +97,9 @@
 
 @interface UIImage (ImageEffects)
 
++ (UIImage *)darkishBlurredImageForView:(UIView *)view;
 + (UIImage *)blurredImageForView:(UIView *)view;
++ (UIImage *)lightlyBlurredImageForView:(UIView *)view;
 
 - (UIImage *)applyLightEffect;
 - (UIImage *)applyExtraLightEffect;
